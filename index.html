@@ -53,9 +53,16 @@
         <div id="phase-description" class="mt-6 text-xl text-gray-700"></div>
       </div>
     </div>
-    
+
+    <audio id="phase-change-sound" src="https://opengameart.org/sites/default/files/Picked%20Coin%20Echo%202.wav" preload="auto"></audio>
 
     <script type="text/javascript">
+      function playPhaseChangeSound() {
+        const sound = document.getElementById('phase-change-sound');
+        sound.currentTime = 0;
+        sound.play();
+      }
+
       class MultiPhaseTimer {
         constructor(phases, updateUI) {
           this.phases = phases;
@@ -158,6 +165,7 @@
           const timeLeft = this.phases[this.currentPhaseIndex].duration - (now - this.currentPhaseStartTime);
 
           if (timeLeft <= 0) {
+            playPhaseChangeSound();
             this.currentPhaseIndex++;
             if (this.currentPhaseIndex < this.phases.length) {
               this.currentPhaseStartTime = now;
