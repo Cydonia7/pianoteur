@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Pianoteur</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+
+    <style type="text/css">
+      body {
+        font-family: Inter, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-3xl">
+        <div class="container mx-auto px-4 py-8">
+          <h1 class="text-4xl font-bold mb-8">Pianoteur</h1>
+          <div class="mb-6">
+            <p class="mb-2">
+              
+            </p>
+            <p class="mb-2">
+              <svg class="inline" width="20px" height="20px" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#000000"><path d="M12 6v6h6" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span id="time-left-phase" class="w-20 inline-block font-semibold">03:00</span>
+              <span id="current-phase" class="font-semibold">Échauffement</span>
+            </p>
+            <p class="mb-2">
+              <svg class="inline" width="20px" height="20px" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#000000"><path d="M12 6v6h6" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span id="time-left-pomodoro" class="w-20 inline-block font-semibold">30:00</span>
+              <span class="font-semibold">Pomodoro</span>
+            </p>
+            <p class="mb-2">
+              <svg class="inline" width="20px" height="20px" stroke-width="1.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" color="#000000"><path d="M12 6v6h6" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="#000000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span id="time-left-session" class="w-20 inline-block font-semibold">1:05:00</span>
+              <span class="font-semibold">Session</span>
+            </p>
+          </div>
+        
+          <div class="flex space-x-4">
+            <button id="start-pause-btn" class="bg-sky-400 hover:bg-sky-300 text-white font-bold py-2 px-4 rounded">
+              Démarrer
+            </button>
+            <button id="next-phase-btn" class="bg-lime-500 hover:bg-lime-400 text-white font-bold py-2 px-4 rounded">
+              Prochaine phase
+            </button>
+            <button id="reset-btn" class="bg-red-500 hover:bg-red-400 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded" disabled>
+              Réinitialiser
+            </button>
+          </div>
+
+          <div id="phase-description" class="mt-6 text-xl text-gray-700"></div>
+      </div>
+    </div>
+    
+
+    <script type="text/javascript">
+      class MultiPhaseTimer {
+        constructor(phases, updateUI) {
+          this.phases = phases;
+          this.currentPhaseIndex = 0;
+          this.currentPhaseStartTime = null;
+          this.timerInterval = null;
+          this.running = false;
+          this.elapsedTime = 0;
+          this.updateUI = updateUI;
+          this.timePaused = 0;
+        }
+
+        start() {
+          if (!this.running) {
+            this.running = true;
+            this.currentPhaseStartTime = Date.now() - this.timePaused;
+            this.timerInterval = setInterval(() => this.updateTimer(), 300);
+            this.updateUI();
+          }
+        }
+
+        pause() {
+          if (this.running) {
+            this.running = false;
+            clearInterval(this.timerInterval);
+            this.timePaused = Date.now() - this.currentPhaseStartTime;
+            this.updateUI();
+          }
+        }
+
+        reset() {
+          this.currentPhaseIndex = 0;
+          this.running = false;
+          this.sessionStartTime = Date.now();
+          this.currentPhaseStartTime = this.sessionStartTime;
+          this.timePaused = 0;
+          clearInterval(this.timerInterval);
+          this.updateUI();
+        }
+
+        getCurrentPhase() {
+          return this.phases[this.currentPhaseIndex];
+        }
+
+        getTimeLeftInPhase() {
+          const phaseEnd = this.currentPhaseStartTime + this.phases[this.currentPhaseIndex].duration;
+          return Math.max(0, phaseEnd - Date.now());
+        }
+
+        getTimeLeftInPomodoro() {
+          const currentPhaseTimeLeft = this.getTimeLeftInPhase();
+          let timeLeftInPomodoro = currentPhaseTimeLeft;
+
+          for (let i = this.currentPhaseIndex + 1; i < this.phases.length; i++) {
+            if (this.phases[i].pomodoroBreak) {
+              break;
+            }
+            timeLeftInPomodoro += this.phases[i].duration;
+          }
+
+          return timeLeftInPomodoro;
+        }
+
+        getTimeLeftInSession() {
+          const currentPhaseTimeLeft = this.getTimeLeftInPhase();
+          let timeLeftInSession = currentPhaseTimeLeft;
+
+          for (let i = this.currentPhaseIndex + 1; i < this.phases.length; i++) {
+            timeLeftInSession += this.phases[i].duration;
+          }
+
+          return timeLeftInSession;
+        }
+
+        goToNextPhase() {
+          if (this.currentPhaseIndex < this.phases.length) {
+            this.currentPhaseIndex++;
+            this.currentPhaseStartTime = Date.now();
+            this.timePaused = 0;
+
+            if (this.running) {
+              clearInterval(this.timerInterval);
+              this.timerInterval = setInterval(() => this.updateTimer(), 100);
+            }
+
+            this.updateUI();
+          }
+        }
+
+        isRunning() {
+          return this.running;
+        }
+
+        isFinished() {
+          return this.currentPhaseIndex >= this.phases.length;
+        }
+
+        updateTimer() {
+          if (!this.running) return;
+
+          const now = Date.now();
+          const timeLeft = this.phases[this.currentPhaseIndex].duration - (now - this.currentPhaseStartTime);
+
+          if (timeLeft <= 0) {
+            this.currentPhaseIndex++;
+            if (this.currentPhaseIndex < this.phases.length) {
+              this.currentPhaseStartTime = now;
+              this.elapsedTime = 0;
+            } else {
+              this.pause();
+              clearInterval(this.timerInterval);
+            }
+          }
+
+          this.updateUI();
+        }
+      }
+
+
+      const minutes = 60 * 1000;
+      const phases = [
+        {
+          "name": 'Échauffement',
+          "duration": 3 * minutes,
+          "description": "<span class='font-bold'>Étirez</span> doucement vos doigts, mains et poignets, puis pratiquez des <span class='font-bold'>motifs à 5 doigts simples</span> ou des <span class='font-bold'>gammes</span> à un tempo lent."
+        },
+        {
+          "name": 'Technique',
+          "duration": 12 * minutes,
+          "description": "<ul class='list-decimal'><li><span class='font-bold'>Gammes et arpèges :</span> Travaillez les gammes majeures et mineures, ainsi que les arpèges, avec les deux mains.</li><li><span class='font-bold'>Accords et progressions d'accords :</span> Apprenez et jouez des progressions d'accords courantes dans différentes tonalités.</li><li><span class='font-bold'>Exercices de Hanon :</span> Pratiquez des exercices pour la force, la dextérité et l'indépendance des doigts.</li></ul>"
+        },
+        {
+          "name": 'Déchiffrage & Rythme',
+          "duration": 10 * minutes,
+          "description": "Choisissez un <span class='font-bold'>morceau court</span> légèrement en dessous de votre niveau. Pratiquez le déchiffrage <span class='font-bold'>lentement et avec précision</span>, en vous concentrant sur le rythme, la hauteur et le doigté."
+        },
+        {
+          "name": 'Répertoire 1',
+          "duration": 5 * minutes,
+          "description": "Travaillez sur les <span class='font-bold'>morceaux choisis</span>. Décortiquez les sections difficiles, pratiquez-les lentement et augmentez progressivement le tempo. Concentrez-vous sur la dynamique, l'expression et le phrasé."
+        },
+        {
+          "name": 'Pause',
+          "duration": 5 * minutes,
+          "pomodoroBreak": true,
+          "description": "Faites une <span class='font-bold'>pause</span> pour vous reposer et vous détendre avant de reprendre la pratique."
+        },
+        {
+          "name": 'Répertoire 2',
+          "duration": 15 * minutes,
+          "description": "Poursuivez avec les <span class='font-bold'>morceaux choisis</span>, en travaillant sur les sections difficiles, en pratiquant lentement et en augmentant progressivement le tempo. Concentrez-vous sur la dynamique, l'expression et le phrasé."
+        },
+        {
+          "name": 'Théorie musicale & Formation auditive',
+          "duration": 10 * minutes,
+          "description": "Consacrez du temps à l'apprentissage de la <span class='font-bold'>théorie musicale</span>, comme la compréhension des signatures de tonalité, des intervalles, des gammes et des accords. Pratiquez la <span class='font-bold'>formation auditive</span> en identifiant les intervalles, les accords ou les motifs mélodiques à l'oreille."
+        },
+        {
+          "name": 'Détente & Réflexion',
+          "duration": 5 * minutes,
+          "description": "Terminez votre session de pratique par une <span class='font-bold'>détente</span>, en jouant un morceau simple ou en improvisant. Réfléchissez sur votre session de pratique, en identifiant les domaines dans lesquels vous avez progressé et ceux qui nécessitent des améliorations."
+        }
+      ]
+
+      const startPauseButton = document.getElementById('start-pause-btn');
+      const nextPhaseButton = document.getElementById('next-phase-btn');
+      const resetButton = document.getElementById('reset-btn');
+
+      const phaseDescriptionElement = document.getElementById('phase-description');
+      const currentPhaseElement = document.getElementById('current-phase');
+      const timeLeftPhaseElement = document.getElementById('time-left-phase');
+      const timeLeftPomodoroElement = document.getElementById('time-left-pomodoro');
+      const timeLeftSessionElement = document.getElementById('time-left-session');
+
+      function formatTime(milliseconds) {
+        const totalSeconds = Math.floor(milliseconds / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        return `${hours !== 0 ? hours.toString() + ':' : ''}${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }
+
+      function updateUI() {
+        if (timer.isFinished()) {
+          currentPhaseElement.textContent = 'Fin';
+          timeLeftPhaseElement.textContent = '00:00';
+          timeLeftPomodoroElement.textContent = '00:00';
+          timeLeftSessionElement.textContent = '00:00';
+          phaseDescriptionElement.innerHTML = '';
+          return;
+        }
+
+        phaseDescriptionElement.innerHTML = timer.getCurrentPhase().description;
+        currentPhaseElement.textContent = timer.getCurrentPhase().name;
+        timeLeftPhaseElement.textContent = formatTime(timer.getTimeLeftInPhase());
+        timeLeftPomodoroElement.textContent = formatTime(timer.getTimeLeftInPomodoro());
+        timeLeftSessionElement.textContent = formatTime(timer.getTimeLeftInSession());
+      }
+
+      const timer = new MultiPhaseTimer(phases, updateUI);
+
+      startPauseButton.addEventListener('click', () => {
+        if (timer.isRunning()) {
+          timer.pause();
+          startPauseButton.textContent = 'Démarrer';
+          resetButton.disabled = false;
+        } else {
+          timer.start();
+          startPauseButton.textContent = 'Pause';
+          resetButton.disabled = true;
+        }
+        updateUI();
+      });
+
+      nextPhaseButton.addEventListener('click', () => {
+        timer.goToNextPhase();
+        updateUI();
+      });
+
+      resetButton.addEventListener('click', () => {
+        timer.reset();
+        updateUI();
+      });
+    </script>
+  </body>
+</html>
